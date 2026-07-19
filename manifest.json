@@ -11,8 +11,7 @@
       "js": [
         "intercept.js"
       ],
-      "run_at": "document_start",
-      "all_frames": false
+      "run_at": "document_start"
     },
     {
       "matches": [
@@ -26,8 +25,7 @@
         "css/sitewide.css",
         "css/rovalra.css"
       ],
-      "run_at": "document_start",
-      "all_frames": false
+      "run_at": "document_start"
     }
   ],
   "permissions": [

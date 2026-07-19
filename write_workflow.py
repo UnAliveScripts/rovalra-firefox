@@ -1,4 +1,6 @@
-name: Sync & Release from Upstream
+import os
+
+content = r'''name: Sync & Release from Upstream
 
 on:
   schedule:
@@ -138,3 +140,9 @@ jobs:
           git config user.email "bot@localhost"
           git add manifest.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: bump to v$VER [auto]" && git push)
+'''
+
+path = r'C:\Users\denni\AppData\Local\Temp\opencode\rovalra-firefox\.github\workflows\sync-upstream.yml'
+with open(path, 'w', newline='\n') as f:
+    f.write(content)
+print('Workflow written')
