@@ -9,15 +9,6 @@
         "*://*.roblox.com/*"
       ],
       "js": [
-        "intercept.js"
-      ],
-      "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "*://*.roblox.com/*"
-      ],
-      "js": [
         "src/content/core/firefox/compat.js",
         "content.js"
       ],
