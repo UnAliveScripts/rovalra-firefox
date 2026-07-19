@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "RoValra - Roblox Improved (Firefox)",
-  "version": "0.0.0",
-  "description": "Firefox port of RoValra — enhances Roblox with QoL features and advanced tooling. Auto-synced with upstream.",
+  "version": "2.5.10.1",
+  "description": "Firefox port of RoValra -- enhances Roblox with QoL features and advanced tooling. Auto-synced with upstream.",
   "content_scripts": [
     {
       "matches": [
         "*://*.roblox.com/*"
       ],
       "js": [
-        "src/content/core/xhr/intercept.js"
+        "intercept.js"
       ],
       "run_at": "document_start",
       "all_frames": false
