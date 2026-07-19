@@ -73,15 +73,15 @@ jobs:
       - name: Build upstream
         run: cd upstream && node build.js 2>/dev/null || true
 
+      - name: Build Firefox content script
+        run: |
+          cd upstream && npx esbuild src/content/index.js --bundle --outfile=../dist/content.js --keep-names --minify-syntax 2>&1
+
       - name: Setup dist
         run: |
           mkdir -p dist
           cp -r upstream/dist/* dist/ 2>/dev/null || true
           cp -r rules dist/ 2>/dev/null || true
-
-      - name: Build Firefox content script
-        run: |
-          cd upstream && npx esbuild src/content/index.js --bundle --outfile=../dist/content.js --keep-names --minify-syntax 2>/dev/null || true
 
       - name: Copy Firefox files
         run: |
@@ -97,7 +97,7 @@ jobs:
             const up=JSON.parse(fs.readFileSync('upstream/manifest.json','utf8'));
             ff.version=up.version;
             ff.content_scripts = [
-              {matches:['*://*.roblox.com/*'],js:['src/content/core/firefox/compat.js','content.js'],css:['css/sitewide.css','css/rovalra.css'],run_at:'document_start'}
+              {matches:['*://*.roblox.com/*','*://roblox.com/*'],js:['src/content/core/firefox/compat.js','content.js'],css:['css/sitewide.css','css/rovalra.css'],run_at:'document_start'}
             ];
             ff.web_accessible_resources = [
               {resources:['public/Assets/*','data/*','intercept.js','assets/*','css/*'],matches:['https://www.roblox.com/*','*://*.roblox.com/*']},

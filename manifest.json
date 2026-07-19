@@ -6,7 +6,8 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.roblox.com/*"
+        "*://*.roblox.com/*",
+        "*://roblox.com/*"
       ],
       "js": [
         "src/content/core/firefox/compat.js",
