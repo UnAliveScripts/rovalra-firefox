@@ -17,7 +17,15 @@
     }
   }
 
+  function injectFixScript() {
+    var script = document.createElement("script");
+    script.textContent = "(function(){var r=window.fetch;window.fetch=function(){return r.apply(window,arguments);};})();";
+    document.documentElement.appendChild(script);
+    script.remove();
+  }
+
   injectPageScript("intercept.js");
+  injectFixScript();
 
   console.log("[RoValra-Firefox] Compat layer loaded");
 })();
