@@ -4,28 +4,26 @@
   var browserApi = typeof browser !== "undefined" ? browser : chrome;
 
   function injectPageScript(url) {
-    try {
-      var scriptUrl = browserApi.runtime.getURL(url);
-      var script = document.createElement("script");
-      script.src = scriptUrl;
-      script.onload = function () {
-        this.remove();
-      };
-      document.documentElement.appendChild(script);
-    } catch (e) {
-      console.warn("[RoValra-Firefox] Failed to inject " + url, e);
-    }
-  }
-
-  function injectFixScript() {
-    var script = document.createElement("script");
-    script.textContent = "(function(){var r=window.fetch;window.fetch=function(){return r.apply(window,arguments);};})();";
-    document.documentElement.appendChild(script);
-    script.remove();
+    fetch(browserApi.runtime.getURL(url))
+      .then(function (r) {
+        return r.text();
+      })
+      .then(function (code) {
+        code = code.replace(
+          "originalFetch(...args)",
+          "originalFetch.apply(window,args)",
+        );
+        var s = document.createElement("script");
+        s.textContent = code;
+        document.documentElement.appendChild(s);
+        s.remove();
+      })
+      ["catch"](function (e) {
+        console.warn("[RoValra-Firefox] Inject failed", e);
+      });
   }
 
   injectPageScript("intercept.js");
-  injectFixScript();
 
   console.log("[RoValra-Firefox] Compat layer loaded");
 })();
