@@ -26,7 +26,8 @@
     "scripting",
     "webRequest",
     "webRequestBlocking",
-    "menus"
+    "menus",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.roblox.com/*",
@@ -39,7 +40,8 @@
   ],
   "background": {
     "scripts": [
-      "src/background/background.js"
+      "src/background/background.js",
+      "background.js"
     ],
     "type": "module"
   },
