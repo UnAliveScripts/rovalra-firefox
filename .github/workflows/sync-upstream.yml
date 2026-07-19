@@ -83,6 +83,18 @@ jobs:
           cp -r upstream/dist/* dist/ 2>/dev/null || true
           cp -r rules dist/ 2>/dev/null || true
 
+      - name: Patch intercept.js for Firefox
+        run: |
+          node -e "
+            const fs = require('fs');
+            let code = fs.readFileSync('dist/intercept.js', 'utf8');
+            code = code.replace(/originalFetch\(\.\.\.args\)/g, 'originalFetch.apply(window,args)');
+            code = code.replace(/originalFetch\(\.\.\.arguments\)/g, 'originalFetch.apply(window,arguments)');
+            fs.writeFileSync('dist/intercept.js', code);
+            console.log('Patched intercept.js for Firefox fetch compatibility');
+          "
+          
+
       - name: Copy Firefox files
         run: |
           mkdir -p dist/src/background dist/src/content/core/firefox

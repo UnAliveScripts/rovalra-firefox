@@ -4,23 +4,17 @@
   var browserApi = typeof browser !== "undefined" ? browser : chrome;
 
   function injectPageScript(url) {
-    fetch(browserApi.runtime.getURL(url))
-      .then(function (r) {
-        return r.text();
-      })
-      .then(function (code) {
-        code = code.replace(
-          "originalFetch(...args)",
-          "originalFetch.apply(window,args)",
-        );
-        var s = document.createElement("script");
-        s.textContent = code;
-        document.documentElement.appendChild(s);
-        s.remove();
-      })
-      ["catch"](function (e) {
-        console.warn("[RoValra-Firefox] Inject failed", e);
-      });
+    try {
+      var scriptUrl = browserApi.runtime.getURL(url);
+      var script = document.createElement("script");
+      script.src = scriptUrl;
+      script.onload = function () {
+        this.remove();
+      };
+      document.documentElement.appendChild(script);
+    } catch (e) {
+      console.warn("[RoValra-Firefox] Failed to inject " + url, e);
+    }
   }
 
   injectPageScript("intercept.js");
