@@ -1,0 +1,19 @@
+{
+  "description": "Firefox manifest patches applied on top of upstream",
+  "operations": [
+    {
+      "action": "merge-json",
+      "file": "package.json",
+      "content": {
+        "devDependencies": {
+          "@types/firefox-webext-browser": "^120.0.0"
+        }
+      }
+    },
+    {
+      "action": "replace",
+      "file": "src/background/background.js",
+      "content": "// RoValra Firefox background — replaced by port build\n// CSP bypass is handled by DNR rules + webRequest listener\n"
+    }
+  ]
+}

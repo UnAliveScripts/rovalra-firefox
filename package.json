@@ -1,0 +1,15 @@
+{
+  "name": "rovalra-firefox",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Firefox port of RoValra — auto-synced from upstream",
+  "scripts": {
+    "build": "node build.js",
+    "clean": "rimraf dist upstream"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "rimraf": "^6.0.0",
+    "sass": "^1.80.0"
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "manifest_version": 3,
+  "name": "RoValra - Roblox Improved (Firefox)",
+  "version": "0.0.0",
+  "description": "Firefox port of RoValra — enhances Roblox with QoL features and advanced tooling. Auto-synced with upstream.",
+  "content_scripts": [
+    {
+      "matches": ["*://*.roblox.com/*"],
+      "js": ["src/content/core/xhr/intercept.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["*://*.roblox.com/*"],
+      "js": [
+        "src/content/core/firefox/compat.js",
+        "content.js"
+      ],
+      "css": ["css/sitewide.css", "css/rovalra.css"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "storage",
+    "scripting",
+    "webRequest",
+    "webRequestBlocking"
+  ],
+  "host_permissions": [
+    "*://*.roblox.com/*",
+    "https://apis.rovalra.com/*",
+    "https://catalog.rovalra.com/*",
+    "https://www.rovalra.com/*",
+    "https://*.rbxcdn.com/*",
+    "https://rbxcdn.com/*",
+    "https://i.ibb.co/*"
+  ],
+  "background": {
+    "scripts": ["src/background/background.js"],
+    "type": "module"
+  },
+  "optional_permissions": [
+    "webNavigation",
+    "menus"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_csp",
+        "enabled": true,
+        "path": "rules/csp-bypass.json"
+      },
+      {
+        "id": "ruleset_status",
+        "enabled": false,
+        "path": "public/Assets/Rules/StatusRules.json"
+      },
+      {
+        "id": "ruleset_3",
+        "enabled": false,
+        "path": "public/Assets/Rules/beta-rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "public/Assets/*",
+        "data/*",
+        "intercept.js",
+        "assets/*",
+        "css/*"
+      ],
+      "matches": ["https://www.roblox.com/*", "*://*.roblox.com/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "public/Assets/popup/popup.html",
+    "default_icon": {
+      "16": "public/Assets/icon-16.png",
+      "48": "public/Assets/icon-48.png",
+      "128": "public/Assets/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "public/Assets/icon-16.png",
+    "48": "public/Assets/icon-48.png",
+    "128": "public/Assets/icon-128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rovalra-firefox@yourname",
+      "strict_min_version": "128.0"
+    }
+  }
+}

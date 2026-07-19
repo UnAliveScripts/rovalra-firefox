@@ -1,0 +1,225 @@
+name: Sync & Release from Upstream
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force rebuild even if same version"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  UPSTREAM_REPO: NotValra/RoValra
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      upstream_version: ${{ steps.get-version.outputs.version }}
+      local_version: ${{ steps.get-local-version.outputs.version }}
+      has_new: ${{ steps.compare.outputs.has_new }}
+
+    steps:
+      - name: Checkout local repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get local version
+        id: get-local-version
+        run: |
+          if [ -f manifest.json ]; then
+            VER=$(jq -r '.version' manifest.json)
+          else
+            VER="0.0.0"
+          fi
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "Local version: $VER"
+
+      - name: Get upstream version
+        id: get-version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(gh release view --repo ${{ env.UPSTREAM_REPO }} --json tagName --jq '.tagName' 2>/dev/null || echo "")
+          if [ -z "$TAG" ]; then
+            TAG=$(gh api /repos/${{ env.UPSTREAM_REPO }}/releases/latest --jq '.tag_name' 2>/dev/null || echo "unknown")
+          fi
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          echo "Upstream version: ${TAG#v}"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          LOCAL="${{ steps.get-local-version.outputs.version }}"
+          UPSTREAM="${{ steps.get-version.outputs.version }}"
+          FORCE="${{ inputs.force == true && 'true' || 'false' }}"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "has_new=true" >> $GITHUB_OUTPUT
+            echo "Force rebuild triggered"
+          elif [ "$LOCAL" != "$UPSTREAM" ]; then
+            echo "has_new=true" >> $GITHUB_OUTPUT
+            echo "New version available: $UPSTREAM (local: $LOCAL)"
+          else
+            echo "has_new=false" >> $GITHUB_OUTPUT
+            echo "Already at latest: $LOCAL"
+          fi
+
+  build:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.has_new == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout local repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Clone upstream RoValra
+        run: |
+          git clone --depth 1 https://github.com/${{ env.UPSTREAM_REPO }}.git upstream
+          rm -rf upstream/.git
+
+      - name: Install upstream dependencies
+        run: |
+          cd upstream
+          npm ci --omit=dev 2>/dev/null || npm install --production 2>/dev/null || true
+          cd ..
+          npm ci 2>/dev/null || npm install 2>/dev/null || true
+
+      - name: Apply Firefox patches
+        run: |
+          echo "Applying Firefox manifest..."
+          node -e "
+            const fs = require('fs');
+            const ffManifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
+            const upManifest = JSON.parse(fs.readFileSync('upstream/manifest.json','utf8'));
+
+            ffManifest.version = upManifest.version;
+
+            const upstreamCSS = [
+              { matches: ['*://*.roblox.com/*'], js: ['content.js'], css: ['css/sitewide.css','css/rovalra.css'], run_at: 'document_start', all_frames: false }
+            ];
+            ffManifest.content_scripts = [
+              { matches: ['*://*.roblox.com/*'], js: ['src/content/core/xhr/intercept.js'], run_at: 'document_start', all_frames: false },
+              { matches: ['*://*.roblox.com/*'], js: ['content.js'], run_at: 'document_start', all_frames: false },
+            ];
+
+            const upstreamWAR = upManifest.web_accessible_resources || [];
+            ffManifest.web_accessible_resources = [
+              { resources: ['public/Assets/*','data/*','intercept.js','assets/*','css/*'], matches: ['https://www.roblox.com/*','*://*.roblox.com/*'] },
+              ...upstreamWAR
+            ];
+
+            fs.writeFileSync('manifest.json', JSON.stringify(ffManifest, null, 4));
+          "
+
+      - name: Build with upstream's build system
+        run: |
+          cd upstream
+          if [ -f build.js ]; then
+            node build.js
+            echo "Upstream build completed"
+          fi
+          cd ..
+
+      - name: Build Firefox content script
+        run: |
+          npx esbuild upstream/src/content/index.js \
+            --bundle --outfile=dist/content.js \
+            --keep-names --minify-syntax \
+            --legal-comments=none 2>/dev/null || \
+          cp upstream/dist/content.js dist/content.js 2>/dev/null || true
+
+      - name: Copy upstream build artifacts
+        run: |
+          mkdir -p dist/css
+          cp -r upstream/dist/* dist/ 2>/dev/null || true
+
+      - name: Copy Firefox-specific files
+        run: |
+          cp -r rules dist/ 2>/dev/null || true
+          cp manifest.json dist/manifest.json
+          mkdir -p dist/src/content/core/firefox
+          cp -r src/background dist/src/ 2>/dev/null || true
+          cp src/content/core/firefox/compat.js dist/src/content/core/firefox/compat.js
+
+      - name: Copy static assets from upstream
+        run: |
+          for dir in public assets; do
+            if [ -d "upstream/$dir" ]; then
+              mkdir -p "dist/$dir"
+              cp -r "upstream/$dir/"* "dist/$dir/" 2>/dev/null || true
+            fi
+          done
+
+      - name: Fix version in manifest
+        run: |
+          VER="${{ needs.check-upstream.outputs.upstream_version }}"
+          node -e "
+            const m = JSON.parse(fs.readFileSync('dist/manifest.json','utf8'));
+            m.version = '$VER';
+            fs.writeFileSync('dist/manifest.json', JSON.stringify(m, null, 4));
+          "
+
+      - name: Package extension
+        run: |
+          cd dist
+          zip -r ../rovalra-firefox-${{ needs.check-upstream.outputs.upstream_version }}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-upstream.outputs.upstream_version }}
+          name: RoValra Firefox v${{ needs.check-upstream.outputs.upstream_version }}
+          body: |
+            ## RoValra Firefox Port v${{ needs.check-upstream.outputs.upstream_version }}
+
+            Auto-synced from upstream [NotValra/RoValra](https://github.com/NotValra/RoValra)
+
+            ### Changes in this release
+            - Syncs with upstream RoValra v${{ needs.check-upstream.outputs.upstream_version }}
+            - Includes CSP bypass for Firefox compatibility
+            - Firefox-specific compatibility layer
+
+            ### Installation
+            1. Download the `.zip` or `.xpi`
+            2. Go to `about:debugging#/runtime/this-firefox`
+            3. Click "Load Temporary Add-on" and select the file
+
+            ### Auto-Update
+            This port automatically checks for upstream updates every 6 hours.
+          files: rovalra-firefox-${{ needs.check-upstream.outputs.upstream_version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update local manifest version
+        run: |
+          VER="${{ needs.check-upstream.outputs.upstream_version }}"
+          node -e "
+            const m = JSON.parse(fs.readFileSync('manifest.json','utf8'));
+            m.version = '$VER';
+            fs.writeFileSync('manifest.json', JSON.stringify(m, null, 4));
+          "
+
+      - name: Commit version bump
+        run: |
+          git config user.name "RoValra Firefox Bot"
+          git config user.email "bot@rovalra-firefox.local"
+          git add manifest.json
+          git diff --quiet && git diff --staged --quiet || \
+            git commit -m "chore: bump to v${{ needs.check-upstream.outputs.upstream_version }} [auto]"
+          git push
